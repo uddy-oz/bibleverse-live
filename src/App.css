@@ -1,0 +1,245 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f0f0f;
+  color: white;
+}
+
+.app {
+  min-height: 100vh;
+  padding: 40px;
+  display: grid;
+  gap: 32px;
+  place-items: center;
+}
+
+.control-panel {
+  text-align: center;
+}
+
+.control-panel h1 {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.control-panel p {
+  color: #cfcfcf;
+  font-size: 18px;
+}
+
+.search-box {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+input {
+  width: 280px;
+  padding: 14px 18px;
+  border-radius: 999px;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: white;
+  font-size: 16px;
+}
+
+button {
+  padding: 14px 24px;
+  border-radius: 999px;
+  border: none;
+  background: white;
+  color: #111;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.secondary-button {
+  background: transparent;
+  color: white;
+  border: 1px solid white;
+}
+
+.display-screen {
+  width: min(100%, 1000px);
+  min-height: 380px;
+  border: 1px solid #333;
+  border-radius: 28px;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  background: #161616;
+}
+
+.display-screen h2 {
+  font-size: 52px;
+  margin-bottom: 24px;
+}
+
+.display-screen p {
+  font-size: 34px;
+  line-height: 1.5;
+  color: #f2f2f2;
+}
+
+.projectorPage,
+.projector-page {
+  min-height: 100vh;
+  background: #050505;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  overflow: hidden;
+}
+
+.projectorVerse,
+.projector-verse {
+  width: min(100%, 1250px);
+  text-align: center;
+}
+
+.projectorVerse h1,
+.projector-verse h1 {
+  font-size: clamp(52px, 6vw, 88px);
+  margin-bottom: 32px;
+}
+
+.verseText {
+  white-space: pre-line;
+}
+
+.projectorVerse .verseText,
+.projector-verse .verseText {
+  font-size: clamp(36px, 4vw, 58px);
+  line-height: 1.35;
+  color: #ffffff;
+}
+
+.projectorVerse .longVerse,
+.projector-verse .longVerse {
+  font-size: clamp(30px, 3vw, 44px);
+  line-height: 1.35;
+}
+
+.projectorVerse .veryLongVerse,
+.projector-verse .veryLongVerse {
+  font-size: clamp(24px, 2.4vw, 34px);
+  line-height: 1.3;
+}
+
+.displayScreen .verseText,
+.display-screen .verseText {
+  white-space: pre-line;
+}
+.versionSelect {
+  padding: 14px 18px;
+  border-radius: 999px;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.versionSelect:focus {
+  outline: none;
+  border-color: white;
+}
+
+.versionSelect option {
+  background: #1a1a1a;
+  color: white;
+}
+.slideCount {
+  font-size: 18px;
+  color: #aaaaaa;
+  margin-bottom: 12px;
+}
+
+.projectorVerse .slideCount,
+.projector-verse .slideCount {
+  font-size: 24px;
+  color: #999999;
+  margin-bottom: 20px;
+}
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body.displayModeBody {
+  overflow: hidden;
+}
+
+body.displayModeBody #root {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.projectorPage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  padding: 28px 48px;
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.projectorVerse {
+  width: 100%;
+  height: 100%;
+  max-width: 1150px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  text-align: center;
+}
+
+.projectorVerse .slideCount {
+  font-size: clamp(18px, 1.7vw, 28px);
+  margin: 0 0 14px;
+  color: #aaaaaa;
+}
+
+.projectorVerse h1 {
+  max-width: 100%;
+  font-size: clamp(40px, 4.5vw, 72px);
+  line-height: 1.05;
+  margin: 0 0 28px;
+  overflow-wrap: break-word;
+}
+
+.projectorVerse .verseText {
+  width: 100%;
+  max-width: 1050px;
+  white-space: pre-line;
+  font-size: clamp(30px, 3vw, 50px);
+  line-height: 1.22;
+  margin: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.projectorVerse .longVerse {
+  font-size: clamp(26px, 2.5vw, 42px);
+  line-height: 1.2;
+}
+
+.projectorVerse .veryLongVerse {
+  font-size: clamp(22px, 2vw, 34px);
+  line-height: 1.18;
+}
