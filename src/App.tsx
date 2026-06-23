@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import "./App.css";
 import {
   type BibleResult,
@@ -20,11 +21,11 @@ type DisplayVerse = {
 };
 
 function getVerseClass(text: string) {
-  if (text.length > 320) {
+  if (text.length > 240) {
     return "verseText veryLongVerse";
   }
 
-  if (text.length > 180) {
+  if (text.length > 130) {
     return "verseText longVerse";
   }
 
@@ -68,67 +69,95 @@ function App() {
     };
   }, []);
 
-  function updateDisplay(
-    slide: BibleSlide,
-    version: BibleVersion,
-    slideIndex: number,
-    totalSlides: number
-  ) {
-    const newDisplayVerse = {
-      reference: slide.reference,
-      text: slide.text,
-      version,
-      currentSlide: slideIndex + 1,
-      totalSlides,
-    };
-
-    setDisplayVerse(newDisplayVerse);
-    localStorage.setItem("bibleverse_display", JSON.stringify(newDisplayVerse));
-  }
-
-  async function loadReference(reference: string) {
-    try {
-      setIsLoading(true);
-      setMessage("");
-
-      const result = await fetchBibleReference(reference, selectedVersion);
-      const newSlides = makeBibleSlides(result);
-
-      if (newSlides.length === 0) {
-        setMessage("Verse not found. Try John 3:16 or Psalm 23:1-6.");
-        return;
-      }
-
-      setCurrentResult(result);
-      setReferenceInput(reference);
-      setSlides(newSlides);
-      setCurrentSlideIndex(0);
-      updateDisplay(newSlides[0], selectedVersion, 0, newSlides.length);
-    } catch (error) {
-      console.error(error);
-      setCurrentResult(null);
-      setSlides([]);
-      setCurrentSlideIndex(0);
-      setMessage("Verse not found. Try John 3:16, Matthew 6:33, or Psalm 23:1-6.");
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (isDisplayMode) {
+      document.body.classList.add("displayModeBody");
+    } else {
+      document.body.classList.remove("displayModeBody");
     }
-  }
 
-  function showVerse() {
+    return () => {
+      document.body.classList.remove("displayModeBody");
+    };
+  }, [isDisplayMode]);
+
+  const updateDisplay = useCallback(
+    (
+      slide: BibleSlide,
+      version: BibleVersion,
+      slideIndex: number,
+      totalSlides: number
+    ) => {
+      const newDisplayVerse = {
+        reference: slide.reference,
+        text: slide.text,
+        version,
+        currentSlide: slideIndex + 1,
+        totalSlides,
+      };
+
+      setDisplayVerse(newDisplayVerse);
+      localStorage.setItem(
+        "bibleverse_display",
+        JSON.stringify(newDisplayVerse)
+      );
+    },
+    []
+  );
+
+  const loadReference = useCallback(
+    async (reference: string) => {
+      try {
+        setIsLoading(true);
+        setMessage("");
+
+        const result = await fetchBibleReference(reference, selectedVersion);
+        const newSlides = makeBibleSlides(result);
+
+        if (newSlides.length === 0) {
+          setMessage("Verse not found. Try John 3:16 or Psalm 23:1-6.");
+          return;
+        }
+
+        setCurrentResult(result);
+        setReferenceInput(reference);
+        setSlides(newSlides);
+        setCurrentSlideIndex(0);
+        updateDisplay(newSlides[0], selectedVersion, 0, newSlides.length);
+      } catch (error) {
+        console.error(error);
+        setCurrentResult(null);
+        setSlides([]);
+        setCurrentSlideIndex(0);
+        setMessage(
+          "Verse not found. Try John 3:16, Matthew 6:33, or Psalm 23:1-6."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [selectedVersion, updateDisplay]
+  );
+
+  const showVerse = useCallback(() => {
+    if (referenceInput.trim() === "") {
+      setMessage("Type a Bible reference first.");
+      return;
+    }
+
     loadReference(referenceInput);
-  }
+  }, [referenceInput, loadReference]);
 
-  function showNextSlide() {
+  const showNextSlide = useCallback(() => {
     if (slides.length === 0) return;
 
     const nextIndex = Math.min(currentSlideIndex + 1, slides.length - 1);
 
     setCurrentSlideIndex(nextIndex);
     updateDisplay(slides[nextIndex], selectedVersion, nextIndex, slides.length);
-  }
+  }, [slides, currentSlideIndex, selectedVersion, updateDisplay]);
 
-  function showPreviousSlide() {
+  const showPreviousSlide = useCallback(() => {
     if (slides.length === 0) return;
 
     const previousIndex = Math.max(currentSlideIndex - 1, 0);
@@ -140,9 +169,9 @@ function App() {
       previousIndex,
       slides.length
     );
-  }
+  }, [slides, currentSlideIndex, selectedVersion, updateDisplay]);
 
-  function showNextVerse() {
+  const showNextVerse = useCallback(() => {
     if (!currentResult) return;
 
     const nextReference = makeNextVerseReference(currentResult);
@@ -150,9 +179,9 @@ function App() {
     if (!nextReference) return;
 
     loadReference(nextReference);
-  }
+  }, [currentResult, loadReference]);
 
-  function showPreviousVerse() {
+  const showPreviousVerse = useCallback(() => {
     if (!currentResult) return;
 
     const previousReference = makePreviousVerseReference(currentResult);
@@ -160,9 +189,9 @@ function App() {
     if (!previousReference) return;
 
     loadReference(previousReference);
-  }
+  }, [currentResult, loadReference]);
 
-  function clearDisplay() {
+  const clearDisplay = useCallback(() => {
     setReferenceInput("");
     setCurrentResult(null);
     setSlides([]);
@@ -170,24 +199,60 @@ function App() {
     setDisplayVerse(null);
     setMessage("");
     localStorage.removeItem("bibleverse_display");
-  }
+  }, []);
 
-  function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+  function handleInputKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") {
       showVerse();
     }
   }
-  useEffect(() => {
-  if (isDisplayMode) {
-    document.body.classList.add("displayModeBody");
-  } else {
-    document.body.classList.remove("displayModeBody");
-  }
 
-  return () => {
-    document.body.classList.remove("displayModeBody");
-  };
-}, [isDisplayMode]);
+  useEffect(() => {
+    function handleKeyboardShortcut(event: KeyboardEvent) {
+      const target = event.target as HTMLElement;
+
+      const isTyping =
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "TEXTAREA";
+
+      if (isTyping) {
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        showNextSlide();
+      }
+
+      if (event.key === "ArrowLeft") {
+        showPreviousSlide();
+      }
+
+      if (event.key.toLowerCase() === "n") {
+        showNextVerse();
+      }
+
+      if (event.key.toLowerCase() === "p") {
+        showPreviousVerse();
+      }
+
+      if (event.key === "Escape") {
+        clearDisplay();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyboardShortcut);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyboardShortcut);
+    };
+  }, [
+    showNextSlide,
+    showPreviousSlide,
+    showNextVerse,
+    showPreviousVerse,
+    clearDisplay,
+  ]);
 
   if (isDisplayMode) {
     return (
