@@ -133,6 +133,18 @@ function getVerseClass(text: string) {
   return "verseText";
 }
 
+function isRangeReference(reference: string) {
+  return /:\s*\d+\s*-\s*\d+/.test(reference);
+}
+
+function getProgressPercentage(currentIndex: number, total: number) {
+  if (total <= 1) {
+    return 100;
+  }
+
+  return Math.round(((currentIndex + 1) / total) * 100);
+}
+
 function replaceNumberWords(text: string) {
   const words = text.split(" ");
   const convertedWords: string[] = [];
@@ -242,8 +254,13 @@ function App() {
   const [transcript, setTranscript] = useState("");
 
   const speechRecognitionRef = useRef<any>(null);
+  const processSpeechRef = useRef<(spokenText: string) => void>(() => {});
   const lastDetectedReferenceRef = useRef("");
   const lastProcessedSpeechRef = useRef("");
+  const voiceCommandCooldownRef = useRef({
+    command: "",
+    time: 0,
+  });
 
   const isDisplayMode = window.location.pathname === "/display";
   const currentSlide = slides[currentSlideIndex];
@@ -330,7 +347,7 @@ function App() {
         setSlides([]);
         setCurrentSlideIndex(0);
         setMessage(
-          "Verse not found. Try John 3:16, Matthew 6:33, or Psalm 23:1-6."
+          "Verse not found. Give a Bible verse."
         );
       } finally {
         setIsLoading(false);
@@ -349,18 +366,34 @@ function App() {
   }, [referenceInput, loadReference]);
 
   const showNextSlide = useCallback(() => {
-    if (slides.length === 0) return;
+    if (slides.length === 0) {
+      setMessage("Load a verse first.");
+      return;
+    }
 
-    const nextIndex = Math.min(currentSlideIndex + 1, slides.length - 1);
+    if (currentSlideIndex >= slides.length - 1) {
+      setMessage("You are already on the last slide.");
+      return;
+    }
+
+    const nextIndex = currentSlideIndex + 1;
 
     setCurrentSlideIndex(nextIndex);
     updateDisplay(slides[nextIndex], selectedVersion, nextIndex, slides.length);
   }, [slides, currentSlideIndex, selectedVersion, updateDisplay]);
 
   const showPreviousSlide = useCallback(() => {
-    if (slides.length === 0) return;
+    if (slides.length === 0) {
+      setMessage("Load a verse first.");
+      return;
+    }
 
-    const previousIndex = Math.max(currentSlideIndex - 1, 0);
+    if (currentSlideIndex <= 0) {
+      setMessage("You are already on the first slide.");
+      return;
+    }
+
+    const previousIndex = currentSlideIndex - 1;
 
     setCurrentSlideIndex(previousIndex);
     updateDisplay(
@@ -372,24 +405,86 @@ function App() {
   }, [slides, currentSlideIndex, selectedVersion, updateDisplay]);
 
   const showNextVerse = useCallback(() => {
-    if (!currentResult) return;
+    if (!currentResult) {
+      setMessage("Load a verse first.");
+      return;
+    }
+
+    const activeReference = currentSlide?.reference || referenceInput;
+
+    if (isRangeReference(activeReference)) {
+      if (slides.length <= 1) {
+        setMessage("You are already at the end of this selected passage.");
+        return;
+      }
+
+      if (currentSlideIndex < slides.length - 1) {
+        showNextSlide();
+        return;
+      }
+
+      setMessage("You are already at the end of this selected passage.");
+      return;
+    }
 
     const nextReference = makeNextVerseReference(currentResult);
 
-    if (!nextReference) return;
+    if (!nextReference) {
+      setMessage("You are already at the last verse of this chapter.");
+      return;
+    }
 
     loadReference(nextReference);
-  }, [currentResult, loadReference]);
+  }, [
+    currentResult,
+    currentSlide,
+    referenceInput,
+    slides.length,
+    currentSlideIndex,
+    showNextSlide,
+    loadReference,
+  ]);
 
   const showPreviousVerse = useCallback(() => {
-    if (!currentResult) return;
+    if (!currentResult) {
+      setMessage("Load a verse first.");
+      return;
+    }
+
+    const activeReference = currentSlide?.reference || referenceInput;
+
+    if (isRangeReference(activeReference)) {
+      if (slides.length <= 1) {
+        setMessage("You are already at the start of this selected passage.");
+        return;
+      }
+
+      if (currentSlideIndex > 0) {
+        showPreviousSlide();
+        return;
+      }
+
+      setMessage("You are already at the start of this selected passage.");
+      return;
+    }
 
     const previousReference = makePreviousVerseReference(currentResult);
 
-    if (!previousReference) return;
+    if (!previousReference) {
+      setMessage("You are already at the first verse of this chapter.");
+      return;
+    }
 
     loadReference(previousReference);
-  }, [currentResult, loadReference]);
+  }, [
+    currentResult,
+    currentSlide,
+    referenceInput,
+    slides.length,
+    currentSlideIndex,
+    showPreviousSlide,
+    loadReference,
+  ]);
 
   const clearDisplay = useCallback(() => {
     setReferenceInput("");
@@ -404,6 +499,22 @@ function App() {
     localStorage.removeItem("bibleverse_display");
   }, []);
 
+  const runVoiceCommand = useCallback((command: string, action: () => void) => {
+    const now = Date.now();
+    const lastCommand = voiceCommandCooldownRef.current;
+
+    if (lastCommand.command === command && now - lastCommand.time < 1200) {
+      return;
+    }
+
+    voiceCommandCooldownRef.current = {
+      command,
+      time: now,
+    };
+
+    action();
+  }, []);
+
   const processSpeech = useCallback(
     (spokenText: string) => {
       const cleanedSpeech = replaceNumberWords(cleanSpokenText(spokenText));
@@ -415,7 +526,7 @@ function App() {
       lastProcessedSpeechRef.current = cleanedSpeech;
 
       if (cleanedSpeech.includes("next slide")) {
-        showNextSlide();
+        runVoiceCommand("nextSlide", showNextSlide);
         return;
       }
 
@@ -423,12 +534,12 @@ function App() {
         cleanedSpeech.includes("previous slide") ||
         cleanedSpeech.includes("last slide")
       ) {
-        showPreviousSlide();
+        runVoiceCommand("previousSlide", showPreviousSlide);
         return;
       }
 
       if (cleanedSpeech.includes("next verse")) {
-        showNextVerse();
+        runVoiceCommand("nextVerse", showNextVerse);
         return;
       }
 
@@ -436,12 +547,12 @@ function App() {
         cleanedSpeech.includes("previous verse") ||
         cleanedSpeech.includes("last verse")
       ) {
-        showPreviousVerse();
+        runVoiceCommand("previousVerse", showPreviousVerse);
         return;
       }
 
       if (cleanedSpeech.includes("clear display") || cleanedSpeech === "clear") {
-        clearDisplay();
+        runVoiceCommand("clearDisplay", clearDisplay);
         return;
       }
 
@@ -462,90 +573,95 @@ function App() {
       showPreviousVerse,
       clearDisplay,
       loadReference,
+      runVoiceCommand,
     ]
   );
 
+  useEffect(() => {
+    processSpeechRef.current = processSpeech;
+  }, [processSpeech]);
+
   const startListening = useCallback(() => {
-  const SpeechRecognitionClass =
-    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionClass =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-  if (!SpeechRecognitionClass) {
-    setMessage(
-      "Speech recognition is not supported in this browser. Try Google Chrome."
-    );
-    return;
-  }
+    if (!SpeechRecognitionClass) {
+      setMessage(
+        "Speech recognition is not supported in this browser. Try Google Chrome."
+      );
+      return;
+    }
 
-  try {
-    const recognition = new SpeechRecognitionClass();
+    try {
+      const recognition = new SpeechRecognitionClass();
 
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
 
-    setIsListening(true);
-    setMessage("Starting microphone...");
-
-    recognition.onstart = () => {
       setIsListening(true);
-      setMessage("Listening for Bible references...");
-    };
+      setMessage("Starting microphone...");
 
-    recognition.onresult = (event: any) => {
-      let finalTranscript = "";
-      let interimTranscript = "";
+      recognition.onstart = () => {
+        setIsListening(true);
+        setMessage("Listening for Bible references...");
+      };
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const spokenPart = event.results[i][0].transcript.trim();
+      recognition.onresult = (event: any) => {
+        let finalTranscript = "";
+        let interimTranscript = "";
 
-        if (event.results[i].isFinal) {
-          finalTranscript += `${spokenPart} `;
-        } else {
-          interimTranscript += `${spokenPart} `;
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const spokenPart = event.results[i][0].transcript.trim();
+
+          if (event.results[i].isFinal) {
+            finalTranscript += `${spokenPart} `;
+          } else {
+            interimTranscript += `${spokenPart} `;
+          }
         }
-      }
 
-      const visibleTranscript = `${finalTranscript} ${interimTranscript}`.trim();
+        const visibleTranscript = `${finalTranscript} ${interimTranscript}`.trim();
 
-      if (visibleTranscript) {
-        setTranscript(visibleTranscript);
-      }
+        if (visibleTranscript) {
+          setTranscript(visibleTranscript);
+        }
 
-      if (finalTranscript.trim()) {
-        processSpeech(finalTranscript);
-      }
-    };
+        if (finalTranscript.trim()) {
+          processSpeechRef.current(finalTranscript);
+        }
+      };
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
 
+        setIsListening(false);
+
+        if (event.error === "not-allowed") {
+          setMessage("Microphone permission was blocked. Allow microphone access.");
+          return;
+        }
+
+        if (event.error === "no-speech") {
+          setMessage("No speech detected. Try speaking closer to the mic.");
+          return;
+        }
+
+        setMessage(`Speech recognition error: ${event.error}`);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      speechRecognitionRef.current = recognition;
+      recognition.start();
+    } catch (error) {
+      console.error("Could not start speech recognition:", error);
       setIsListening(false);
-
-      if (event.error === "not-allowed") {
-        setMessage("Microphone permission was blocked. Allow microphone access.");
-        return;
-      }
-
-      if (event.error === "no-speech") {
-        setMessage("No speech detected. Try speaking closer to the mic.");
-        return;
-      }
-
-      setMessage(`Speech recognition error: ${event.error}`);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    speechRecognitionRef.current = recognition;
-    recognition.start();
-  } catch (error) {
-    console.error("Could not start speech recognition:", error);
-    setIsListening(false);
-    setMessage("Could not start microphone. Try Google Chrome.");
-  }
-}, [processSpeech]);
+      setMessage("Could not start microphone. Try Google Chrome.");
+    }
+  }, []);
 
   const stopListening = useCallback(() => {
     if (speechRecognitionRef.current) {
@@ -626,6 +742,20 @@ function App() {
             <p className="slideCount">
               Slide {displayVerse.currentSlide} of {displayVerse.totalSlides}
             </p>
+
+            <div className="passageProgress projectorProgress">
+              <div className="progressTrack">
+                <div
+                  className="progressFill"
+                  style={{
+                    width: `${getProgressPercentage(
+                      displayVerse.currentSlide - 1,
+                      displayVerse.totalSlides
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
 
             <h1>
               {displayVerse.reference} · {displayVerse.version}
@@ -709,6 +839,24 @@ function App() {
             <p className="slideCount">
               Slide {currentSlideIndex + 1} of {slides.length}
             </p>
+
+            <div className="passageProgress">
+              <p>
+                Position: {currentSlideIndex + 1} of {slides.length}
+              </p>
+
+              <div className="progressTrack">
+                <div
+                  className="progressFill"
+                  style={{
+                    width: `${getProgressPercentage(
+                      currentSlideIndex,
+                      slides.length
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
 
             <h2>
               {currentSlide.reference} · {selectedVersion}
