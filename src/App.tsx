@@ -106,6 +106,89 @@ const bibleBookAliases = [
   { pattern: "revelation", display: "Revelation" },
 ];
 
+const bibleBooks = [
+  "Genesis",
+  "Exodus",
+  "Leviticus",
+  "Numbers",
+  "Deuteronomy",
+  "Joshua",
+  "Judges",
+  "Ruth",
+  "1 Samuel",
+  "2 Samuel",
+  "1 Kings",
+  "2 Kings",
+  "1 Chronicles",
+  "2 Chronicles",
+  "Ezra",
+  "Nehemiah",
+  "Esther",
+  "Job",
+  "Psalm",
+  "Proverbs",
+  "Ecclesiastes",
+  "Song of Solomon",
+  "Isaiah",
+  "Jeremiah",
+  "Lamentations",
+  "Ezekiel",
+  "Daniel",
+  "Hosea",
+  "Joel",
+  "Amos",
+  "Obadiah",
+  "Jonah",
+  "Micah",
+  "Nahum",
+  "Habakkuk",
+  "Zephaniah",
+  "Haggai",
+  "Zechariah",
+  "Malachi",
+  "Matthew",
+  "Mark",
+  "Luke",
+  "John",
+  "Acts",
+  "Romans",
+  "1 Corinthians",
+  "2 Corinthians",
+  "Galatians",
+  "Ephesians",
+  "Philippians",
+  "Colossians",
+  "1 Thessalonians",
+  "2 Thessalonians",
+  "1 Timothy",
+  "2 Timothy",
+  "Titus",
+  "Philemon",
+  "Hebrews",
+  "James",
+  "1 Peter",
+  "2 Peter",
+  "1 John",
+  "2 John",
+  "3 John",
+  "Jude",
+  "Revelation",
+];
+
+const writtenBookNumbers: Record<string, string> = {
+  "1": "first",
+  "2": "second",
+  "3": "third",
+};
+
+const joBookSuggestionPriority: Record<string, number> = {
+  John: 1,
+  Joshua: 2,
+  Joel: 3,
+  Jonah: 4,
+  Job: 5,
+};
+
 const numberWords: Record<string, number> = {
   zero: 0,
   one: 1,
@@ -253,6 +336,143 @@ function extractBibleReference(spokenText: string) {
   return null;
 }
 
+function normalizeBookSearchText(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasChapterOrVersePart(input: string) {
+  return /\s+\d/.test(input.trim());
+}
+
+function getBookSearchQuery(input: string) {
+  const trimmedInput = input.trimStart();
+  const chapterMatch = trimmedInput.match(/\s+\d/);
+
+  if (chapterMatch?.index !== undefined) {
+    return trimmedInput.slice(0, chapterMatch.index);
+  }
+
+  return trimmedInput;
+}
+
+function getBibleBookSearchParts(book: string) {
+  const normalizedBook = normalizeBookSearchText(book);
+  const numberedBookMatch = normalizedBook.match(/^([1-3])\s+(.+)$/);
+
+  if (numberedBookMatch) {
+    const [, bookNumber, baseBookName] = numberedBookMatch;
+    const writtenNumber = writtenBookNumbers[bookNumber];
+
+    return {
+      baseName: baseBookName,
+      displayName: normalizedBook,
+      writtenNumberName: writtenNumber
+        ? `${writtenNumber} ${baseBookName}`
+        : "",
+    };
+  }
+
+  return {
+    baseName: normalizedBook,
+    displayName: normalizedBook,
+    writtenNumberName: "",
+  };
+}
+
+function getBibleBookSuggestionScore(book: string, query: string) {
+  const { baseName, displayName, writtenNumberName } =
+    getBibleBookSearchParts(book);
+  const allowBroadMatches = query.length >= 3;
+  let matchRank: number | null = null;
+
+  if (displayName === query) {
+    matchRank = 0;
+  } else if (baseName === query) {
+    matchRank = 1;
+  } else if (displayName.startsWith(query) || baseName.startsWith(query)) {
+    matchRank = 2;
+  } else if (allowBroadMatches && displayName.includes(query)) {
+    matchRank = 3;
+  } else if (allowBroadMatches && baseName.includes(query)) {
+    matchRank = 4;
+  } else if (
+    allowBroadMatches &&
+    writtenNumberName &&
+    writtenNumberName.startsWith(query)
+  ) {
+    matchRank = 5;
+  }
+
+  if (matchRank === null) {
+    return null;
+  }
+
+  const preferredRank = query.startsWith("jo")
+    ? joBookSuggestionPriority[book] || 100
+    : 100;
+
+  return {
+    matchRank,
+    preferredRank,
+    displayLength: book.length,
+    bookIndex: bibleBooks.indexOf(book),
+  };
+}
+
+function getBibleBookSuggestions(input: string) {
+  if (!input.trim() || hasChapterOrVersePart(input)) {
+    return [];
+  }
+
+  const query = normalizeBookSearchText(getBookSearchQuery(input));
+
+  if (!query) {
+    return [];
+  }
+
+  return bibleBooks
+    .map((book) => ({
+      book,
+      score: getBibleBookSuggestionScore(book, query),
+    }))
+    .filter((suggestion): suggestion is {
+      book: string;
+      score: NonNullable<ReturnType<typeof getBibleBookSuggestionScore>>;
+    } => {
+      return suggestion.score !== null;
+    })
+    .sort((firstSuggestion, secondSuggestion) => {
+      const firstScore = firstSuggestion.score;
+      const secondScore = secondSuggestion.score;
+
+      return (
+        firstScore.matchRank - secondScore.matchRank ||
+        firstScore.preferredRank - secondScore.preferredRank ||
+        firstScore.bookIndex - secondScore.bookIndex ||
+        firstScore.displayLength - secondScore.displayLength
+      );
+    })
+    .map((suggestion) => suggestion.book)
+    .slice(0, 8);
+}
+
+function applyBookSuggestion(input: string, bookName: string) {
+  const trimmedInput = input.trimStart();
+  const chapterMatch = trimmedInput.match(/\s+\d/);
+
+  if (chapterMatch?.index !== undefined) {
+    const restOfReference = trimmedInput.slice(chapterMatch.index).trimStart();
+
+    return `${bookName} ${restOfReference}`;
+  }
+
+  return `${bookName} `;
+}
+
 function isSelectedPassage(result: BibleResult | null, slides: BibleSlide[]) {
   return Boolean(result && result.verses.length > 1 && slides.length > 0);
 }
@@ -268,6 +488,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [showBookSuggestions, setShowBookSuggestions] = useState(false);
 
   const speechRecognitionRef = useRef<any>(null);
   const processSpeechRef = useRef<(spokenText: string) => void>(() => {});
@@ -290,6 +511,9 @@ function App() {
 
   const isDisplayMode = window.location.pathname === "/display";
   const currentSlide = slides[currentSlideIndex];
+  const bookSuggestions = getBibleBookSuggestions(referenceInput);
+  const shouldShowBookSuggestions =
+    showBookSuggestions && bookSuggestions.length > 0;
 
   const updateLatestState = useCallback(
     (partialState: Partial<LatestBibleState>) => {
@@ -749,8 +973,17 @@ function App() {
     setMessage("");
   }, []);
 
+  function selectBibleBook(bookName: string) {
+    const nextReferenceInput = applyBookSuggestion(referenceInput, bookName);
+
+    setReferenceInput(nextReferenceInput);
+    updateLatestState({ referenceInput: nextReferenceInput });
+    setShowBookSuggestions(false);
+  }
+
   function handleInputKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") {
+      setShowBookSuggestions(false);
       showVerse();
     }
   }
@@ -875,15 +1108,41 @@ function App() {
             ))}
           </select>
 
-          <input
-            value={referenceInput}
-            onChange={(event) => {
-              setReferenceInput(event.target.value);
-              updateLatestState({ referenceInput: event.target.value });
-            }}
-            onKeyDown={handleInputKeyDown}
-            placeholder="Try John 3:16"
-          />
+          <div className="referenceInputWrap">
+            <input
+              value={referenceInput}
+              onBlur={() => {
+                window.setTimeout(() => setShowBookSuggestions(false), 120);
+              }}
+              onChange={(event) => {
+                setReferenceInput(event.target.value);
+                updateLatestState({ referenceInput: event.target.value });
+                setShowBookSuggestions(true);
+              }}
+              onFocus={() => setShowBookSuggestions(true)}
+              onKeyDown={handleInputKeyDown}
+              placeholder="Try John 3:16"
+            />
+
+            {shouldShowBookSuggestions && (
+              <div className="bookSuggestions" role="listbox">
+                {bookSuggestions.map((bookName) => (
+                  <button
+                    className="bookSuggestion"
+                    key={bookName}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      selectBibleBook(bookName);
+                    }}
+                    type="button"
+                    role="option"
+                  >
+                    {bookName}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button onClick={showVerse} disabled={isLoading}>
             {isLoading ? "Loading..." : "Show Verse"}
