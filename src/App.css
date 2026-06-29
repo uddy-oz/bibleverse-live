@@ -1,7 +1,7 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #0f0f0f;
+  background: #0c0c0d;
   color: white;
 }
 
@@ -13,18 +13,18 @@ body {
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: clamp(28px, 5vh, 48px) 20px 36px;
+  padding: clamp(32px, 5vh, 52px) 20px 38px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: clamp(22px, 3vh, 30px);
+  gap: clamp(24px, 3vh, 32px);
   overflow-x: hidden;
 }
 
 .controlPanel,
 .control-panel {
-  width: min(100%, 1040px);
+  width: min(100%, 1060px);
   margin: 0 auto;
   text-align: center;
 }
@@ -33,40 +33,53 @@ body {
 .control-panel h1 {
   font-size: clamp(40px, 5vw, 48px);
   line-height: 1.08;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
 }
 
 .controlPanel p,
 .control-panel p {
   margin: 0;
-  color: #cfcfcf;
+  color: #c8c8c8;
   font-size: 18px;
+  line-height: 1.45;
 }
 
 .searchBox,
 .search-box {
-  width: min(100%, 860px);
-  margin-top: 24px;
+  width: min(100%, 900px);
+  margin-top: 26px;
   margin-inline: auto;
+  padding: 14px;
+  border: 1px solid #2a2a2a;
+  border-radius: 28px;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  background: #141414;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.22);
 }
 
 input {
+  min-height: 50px;
   width: min(100%, 320px);
-  padding: 14px 18px;
+  padding: 0 18px;
   border-radius: 999px;
-  border: 1px solid #333;
-  background: #1a1a1a;
+  border: 1px solid #303030;
+  background: #101010;
   color: white;
   font-size: 16px;
 }
 
+input:focus {
+  outline: none;
+  border-color: #ffffff;
+}
+
 button {
-  padding: 14px 24px;
+  min-height: 50px;
+  padding: 0 20px;
   border-radius: 999px;
   border: none;
   background: white;
@@ -74,12 +87,30 @@ button {
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  transition:
+    background 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+button:hover {
+  background: #f1f1f1;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
 }
 
 .searchBox input,
 .search-box input {
-  flex: 1 1 280px;
-  max-width: 360px;
+  flex: 1 1 300px;
+  max-width: 380px;
 }
 
 .searchBox button,
@@ -94,31 +125,41 @@ button {
 .secondary-button {
   background: transparent;
   color: white;
-  border: 1px solid white;
+  border: 1px solid #d8d8d8;
+  box-shadow: none;
+}
+
+.secondaryButton:hover,
+.secondary-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
 }
 
 .displayScreen,
 .display-screen {
-  width: min(100%, 960px);
-  min-height: 340px;
+  width: min(100%, 920px);
+  min-height: 310px;
   margin: 0 auto;
-  border: 1px solid #333;
-  border-radius: 28px;
-  padding: clamp(30px, 4vw, 44px);
+  border: 1px solid #2b2b2b;
+  border-radius: 26px;
+  padding: clamp(28px, 3.5vw, 40px);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  background: #161616;
+  background: #151515;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .displayScreen h2,
 .display-screen h2 {
   max-width: 100%;
-  font-size: clamp(34px, 4vw, 52px);
+  font-size: clamp(28px, 3.3vw, 42px);
   line-height: 1.1;
-  margin-bottom: 24px;
+  margin: 0 0 18px;
   overflow-wrap: break-word;
 }
 
@@ -127,8 +168,8 @@ button {
   max-width: 100%;
   margin-left: auto;
   margin-right: auto;
-  font-size: clamp(22px, 3vw, 34px);
-  line-height: 1.5;
+  font-size: clamp(20px, 2.4vw, 28px);
+  line-height: 1.45;
   color: #f2f2f2;
   overflow-wrap: break-word;
 }
@@ -183,13 +224,15 @@ button {
 .displayScreen .verseText,
 .display-screen .verseText {
   white-space: pre-line;
+  margin-bottom: 0;
 }
 .versionSelect {
+  min-height: 50px;
   max-width: 100%;
-  padding: 14px 18px;
+  padding: 0 18px;
   border-radius: 999px;
-  border: 1px solid #333;
-  background: #1a1a1a;
+  border: 1px solid #303030;
+  background: #101010;
   color: white;
   font-size: 16px;
   font-weight: bold;
@@ -205,9 +248,10 @@ button {
   color: white;
 }
 .slideCount {
-  font-size: 18px;
+  font-size: 15px;
+  line-height: 1.3;
   color: #aaaaaa;
-  margin-bottom: 12px;
+  margin: 0 0 10px;
 }
 
 .projectorVerse .slideCount,
@@ -295,9 +339,16 @@ body.displayModeBody #root {
 }
 
 .listeningButton {
-  border: 1px solid white;
+  border: 1px solid #d8d8d8;
   background: transparent;
   color: white;
+  box-shadow: none;
+}
+
+.listeningButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  box-shadow: none;
 }
 
 .listeningButton.active {
@@ -308,21 +359,24 @@ body.displayModeBody #root {
 
 .speechTranscript,
 .speechMessage {
-  margin-top: 18px;
+  width: min(100%, 760px);
+  margin: 16px auto 0;
   color: #d6d6d6;
   font-size: 18px;
+  line-height: 1.45;
   text-align: center;
 }
 
 .passageProgress {
   width: min(520px, 90%);
-  margin: 0 auto 18px;
+  margin: 0 auto 16px;
   text-align: center;
   color: #aaaaaa;
 }
 
 .passageProgress p {
   margin: 0 0 8px;
+  color: #aaaaaa;
   font-size: 15px;
 }
 
