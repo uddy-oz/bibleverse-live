@@ -20,6 +20,19 @@ type DisplayVerse = {
   totalSlides: number;
 };
 
+type LatestBibleState = {
+  referenceInput: string;
+  selectedVersion: BibleVersion;
+  currentResult: BibleResult | null;
+  slides: BibleSlide[];
+  currentSlideIndex: number;
+};
+
+type LastProcessedSpeech = {
+  text: string;
+  time: number;
+};
+
 const bibleBookAliases = [
   { pattern: "1 john", display: "1 John" },
   { pattern: "2 john", display: "2 John" },
@@ -54,7 +67,10 @@ const bibleBookAliases = [
   { pattern: "psalms", display: "Psalm" },
   { pattern: "proverbs", display: "Proverbs" },
   { pattern: "ecclesiastes", display: "Ecclesiastes" },
+  { pattern: "song of songs", display: "Song of Solomon" },
+  { pattern: "song solomon", display: "Song of Solomon" },
   { pattern: "song of solomon", display: "Song of Solomon" },
+  { pattern: "canticles", display: "Song of Solomon" },
   { pattern: "isaiah", display: "Isaiah" },
   { pattern: "jeremiah", display: "Jeremiah" },
   { pattern: "lamentations", display: "Lamentations" },
@@ -131,10 +147,6 @@ function getVerseClass(text: string) {
   }
 
   return "verseText";
-}
-
-function isRangeReference(reference: string) {
-  return /:\s*\d+\s*-\s*\d+/.test(reference);
 }
 
 function getProgressPercentage(currentIndex: number, total: number) {
@@ -241,6 +253,10 @@ function extractBibleReference(spokenText: string) {
   return null;
 }
 
+function isSelectedPassage(result: BibleResult | null, slides: BibleSlide[]) {
+  return Boolean(result && result.verses.length > 1 && slides.length > 0);
+}
+
 function App() {
   const [referenceInput, setReferenceInput] = useState("");
   const [selectedVersion, setSelectedVersion] = useState<BibleVersion>("KJV");
@@ -255,8 +271,18 @@ function App() {
 
   const speechRecognitionRef = useRef<any>(null);
   const processSpeechRef = useRef<(spokenText: string) => void>(() => {});
+  const latestStateRef = useRef<LatestBibleState>({
+    referenceInput: "",
+    selectedVersion: "KJV",
+    currentResult: null,
+    slides: [],
+    currentSlideIndex: 0,
+  });
   const lastDetectedReferenceRef = useRef("");
-  const lastProcessedSpeechRef = useRef("");
+  const lastProcessedSpeechRef = useRef<LastProcessedSpeech>({
+    text: "",
+    time: 0,
+  });
   const voiceCommandCooldownRef = useRef({
     command: "",
     time: 0,
@@ -264,6 +290,26 @@ function App() {
 
   const isDisplayMode = window.location.pathname === "/display";
   const currentSlide = slides[currentSlideIndex];
+
+  const updateLatestState = useCallback(
+    (partialState: Partial<LatestBibleState>) => {
+      latestStateRef.current = {
+        ...latestStateRef.current,
+        ...partialState,
+      };
+    },
+    []
+  );
+
+  useEffect(() => {
+    latestStateRef.current = {
+      referenceInput,
+      selectedVersion,
+      currentResult,
+      slides,
+      currentSlideIndex,
+    };
+  }, [referenceInput, selectedVersion, currentResult, slides, currentSlideIndex]);
 
   useEffect(() => {
     const savedVerse = localStorage.getItem("bibleverse_display");
@@ -323,16 +369,27 @@ function App() {
   );
 
   const loadReference = useCallback(
-    async (reference: string) => {
+    async (
+      reference: string,
+      options: {
+        notFoundMessage?: string;
+        preserveCurrentOnError?: boolean;
+        version?: BibleVersion;
+      } = {}
+    ) => {
       try {
         setIsLoading(true);
         setMessage("");
 
-        const result = await fetchBibleReference(reference, selectedVersion);
+        const version = options.version || latestStateRef.current.selectedVersion;
+        const result = await fetchBibleReference(reference, version);
         const newSlides = makeBibleSlides(result);
 
         if (newSlides.length === 0) {
-          setMessage("Verse not found. Try John 3:16 or Psalm 23:1-6.");
+          setMessage(
+            options.notFoundMessage ||
+              "Verse not found. Try John 3:16 or Psalm 23:1-6."
+          );
           return;
         }
 
@@ -340,32 +397,52 @@ function App() {
         setReferenceInput(reference);
         setSlides(newSlides);
         setCurrentSlideIndex(0);
-        updateDisplay(newSlides[0], selectedVersion, 0, newSlides.length);
+        updateLatestState({
+          currentResult: result,
+          referenceInput: reference,
+          selectedVersion: version,
+          slides: newSlides,
+          currentSlideIndex: 0,
+        });
+        updateDisplay(newSlides[0], version, 0, newSlides.length);
       } catch (error) {
         console.error(error);
-        setCurrentResult(null);
-        setSlides([]);
-        setCurrentSlideIndex(0);
+
+        if (!options.preserveCurrentOnError) {
+          setCurrentResult(null);
+          setSlides([]);
+          setCurrentSlideIndex(0);
+          updateLatestState({
+            currentResult: null,
+            slides: [],
+            currentSlideIndex: 0,
+          });
+        }
+
         setMessage(
-          "Verse not found. Give a Bible verse."
+          options.notFoundMessage || "Verse not found. Give a Bible verse."
         );
       } finally {
         setIsLoading(false);
       }
     },
-    [selectedVersion, updateDisplay]
+    [updateDisplay, updateLatestState]
   );
 
   const showVerse = useCallback(() => {
-    if (referenceInput.trim() === "") {
+    const referenceToLoad = latestStateRef.current.referenceInput.trim();
+
+    if (referenceToLoad === "") {
       setMessage("Type a Bible reference first.");
       return;
     }
 
-    loadReference(referenceInput);
-  }, [referenceInput, loadReference]);
+    loadReference(referenceToLoad);
+  }, [loadReference]);
 
   const showNextSlide = useCallback(() => {
+    const { slides, currentSlideIndex, selectedVersion } = latestStateRef.current;
+
     if (slides.length === 0) {
       setMessage("Load a verse first.");
       return;
@@ -379,10 +456,13 @@ function App() {
     const nextIndex = currentSlideIndex + 1;
 
     setCurrentSlideIndex(nextIndex);
+    updateLatestState({ currentSlideIndex: nextIndex });
     updateDisplay(slides[nextIndex], selectedVersion, nextIndex, slides.length);
-  }, [slides, currentSlideIndex, selectedVersion, updateDisplay]);
+  }, [updateDisplay, updateLatestState]);
 
   const showPreviousSlide = useCallback(() => {
+    const { slides, currentSlideIndex, selectedVersion } = latestStateRef.current;
+
     if (slides.length === 0) {
       setMessage("Load a verse first.");
       return;
@@ -396,35 +476,28 @@ function App() {
     const previousIndex = currentSlideIndex - 1;
 
     setCurrentSlideIndex(previousIndex);
+    updateLatestState({ currentSlideIndex: previousIndex });
     updateDisplay(
       slides[previousIndex],
       selectedVersion,
       previousIndex,
       slides.length
     );
-  }, [slides, currentSlideIndex, selectedVersion, updateDisplay]);
+  }, [updateDisplay, updateLatestState]);
 
   const showNextVerse = useCallback(() => {
+    const { currentResult, slides, currentSlideIndex } = latestStateRef.current;
+
     if (!currentResult) {
       setMessage("Load a verse first.");
       return;
     }
 
-    const activeReference = currentSlide?.reference || referenceInput;
-
-    if (isRangeReference(activeReference)) {
-      if (slides.length <= 1) {
-        setMessage("You are already at the end of this selected passage.");
-        return;
-      }
-
+    if (isSelectedPassage(currentResult, slides)) {
       if (currentSlideIndex < slides.length - 1) {
         showNextSlide();
         return;
       }
-
-      setMessage("You are already at the end of this selected passage.");
-      return;
     }
 
     const nextReference = makeNextVerseReference(currentResult);
@@ -434,38 +507,25 @@ function App() {
       return;
     }
 
-    loadReference(nextReference);
-  }, [
-    currentResult,
-    currentSlide,
-    referenceInput,
-    slides.length,
-    currentSlideIndex,
-    showNextSlide,
-    loadReference,
-  ]);
+    loadReference(nextReference, {
+      notFoundMessage: "You are already at the last verse of this chapter.",
+      preserveCurrentOnError: true,
+    });
+  }, [showNextSlide, loadReference]);
 
   const showPreviousVerse = useCallback(() => {
+    const { currentResult, slides, currentSlideIndex } = latestStateRef.current;
+
     if (!currentResult) {
       setMessage("Load a verse first.");
       return;
     }
 
-    const activeReference = currentSlide?.reference || referenceInput;
-
-    if (isRangeReference(activeReference)) {
-      if (slides.length <= 1) {
-        setMessage("You are already at the start of this selected passage.");
-        return;
-      }
-
+    if (isSelectedPassage(currentResult, slides)) {
       if (currentSlideIndex > 0) {
         showPreviousSlide();
         return;
       }
-
-      setMessage("You are already at the start of this selected passage.");
-      return;
     }
 
     const previousReference = makePreviousVerseReference(currentResult);
@@ -475,16 +535,11 @@ function App() {
       return;
     }
 
-    loadReference(previousReference);
-  }, [
-    currentResult,
-    currentSlide,
-    referenceInput,
-    slides.length,
-    currentSlideIndex,
-    showPreviousSlide,
-    loadReference,
-  ]);
+    loadReference(previousReference, {
+      notFoundMessage: "You are already at the first verse of this chapter.",
+      preserveCurrentOnError: true,
+    });
+  }, [showPreviousSlide, loadReference]);
 
   const clearDisplay = useCallback(() => {
     setReferenceInput("");
@@ -495,9 +550,18 @@ function App() {
     setMessage("");
     setTranscript("");
     lastDetectedReferenceRef.current = "";
-    lastProcessedSpeechRef.current = "";
+    lastProcessedSpeechRef.current = {
+      text: "",
+      time: 0,
+    };
+    updateLatestState({
+      referenceInput: "",
+      currentResult: null,
+      slides: [],
+      currentSlideIndex: 0,
+    });
     localStorage.removeItem("bibleverse_display");
-  }, []);
+  }, [updateLatestState]);
 
   const runVoiceCommand = useCallback((command: string, action: () => void) => {
     const now = Date.now();
@@ -518,12 +582,24 @@ function App() {
   const processSpeech = useCallback(
     (spokenText: string) => {
       const cleanedSpeech = replaceNumberWords(cleanSpokenText(spokenText));
+      const now = Date.now();
+      const lastProcessedSpeech = lastProcessedSpeechRef.current;
 
-      if (!cleanedSpeech || cleanedSpeech === lastProcessedSpeechRef.current) {
+      if (!cleanedSpeech) {
         return;
       }
 
-      lastProcessedSpeechRef.current = cleanedSpeech;
+      if (
+        cleanedSpeech === lastProcessedSpeech.text &&
+        now - lastProcessedSpeech.time < 500
+      ) {
+        return;
+      }
+
+      lastProcessedSpeechRef.current = {
+        text: cleanedSpeech,
+        time: now,
+      };
 
       if (cleanedSpeech.includes("next slide")) {
         runVoiceCommand("nextSlide", showNextSlide);
@@ -785,9 +861,12 @@ function App() {
           <select
             className="versionSelect"
             value={selectedVersion}
-            onChange={(event) =>
-              setSelectedVersion(event.target.value as BibleVersion)
-            }
+            onChange={(event) => {
+              const version = event.target.value as BibleVersion;
+
+              setSelectedVersion(version);
+              updateLatestState({ selectedVersion: version });
+            }}
           >
             {availableBibleVersions.map((version) => (
               <option key={version.id} value={version.id}>
@@ -798,7 +877,10 @@ function App() {
 
           <input
             value={referenceInput}
-            onChange={(event) => setReferenceInput(event.target.value)}
+            onChange={(event) => {
+              setReferenceInput(event.target.value);
+              updateLatestState({ referenceInput: event.target.value });
+            }}
             onKeyDown={handleInputKeyDown}
             placeholder="Try John 3:16"
           />

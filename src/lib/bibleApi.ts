@@ -79,11 +79,20 @@ function cleanBibleApiText(text: string) {
   return text.replace(/\s+/g, " ").trim();
 }
 
+function normalizeReferenceInput(referenceInput: string) {
+  return referenceInput
+    .trim()
+    .replace(/^songs?\s+of\s+songs?\b/i, "Song of Solomon")
+    .replace(/^songs?\s+of\s+solomon\b/i, "Song of Solomon")
+    .replace(/^song\s+solomon\b/i, "Song of Solomon")
+    .replace(/^canticles\b/i, "Song of Solomon");
+}
+
 export async function fetchBibleReference(
   referenceInput: string,
   version: BibleVersion
 ): Promise<BibleResult> {
-  const cleanReference = referenceInput.trim();
+  const cleanReference = normalizeReferenceInput(referenceInput);
 
   if (!cleanReference) {
     throw new Error("Please type a Bible reference.");
@@ -193,11 +202,11 @@ export function makeNextVerseReference(result: BibleResult) {
 export function makePreviousVerseReference(result: BibleResult) {
   const firstVerse = result.verses[0];
 
-  if (!firstVerse) {
+  if (!firstVerse || firstVerse.verseNumber <= 1) {
     return "";
   }
 
-  const previousVerseNumber = Math.max(1, firstVerse.verseNumber - 1);
+  const previousVerseNumber = firstVerse.verseNumber - 1;
 
   return `${firstVerse.bookName} ${firstVerse.chapter}:${previousVerseNumber}`;
 }

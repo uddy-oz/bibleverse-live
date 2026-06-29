@@ -5,38 +5,53 @@ body {
   color: white;
 }
 
-.app {
-  min-height: 100vh;
-  padding: 40px;
-  display: grid;
-  gap: 32px;
-  place-items: center;
+* {
+  box-sizing: border-box;
 }
 
+.app {
+  width: 100%;
+  min-height: 100vh;
+  padding: 32px 20px;
+  display: grid;
+  gap: 28px;
+  align-content: center;
+  justify-items: center;
+  overflow-x: hidden;
+}
+
+.controlPanel,
 .control-panel {
+  width: min(100%, 1080px);
   text-align: center;
 }
 
+.controlPanel h1,
 .control-panel h1 {
   font-size: 48px;
   margin-bottom: 12px;
 }
 
+.controlPanel p,
 .control-panel p {
   color: #cfcfcf;
   font-size: 18px;
 }
 
+.searchBox,
 .search-box {
+  width: min(100%, 920px);
   margin-top: 24px;
+  margin-inline: auto;
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
 input {
-  width: 280px;
+  width: min(100%, 320px);
   padding: 14px 18px;
   border-radius: 999px;
   border: 1px solid #333;
@@ -56,12 +71,28 @@ button {
   cursor: pointer;
 }
 
+.searchBox input,
+.search-box input {
+  flex: 1 1 280px;
+  max-width: 360px;
+}
+
+.searchBox button,
+.searchBox .versionSelect,
+.search-box button,
+.search-box .versionSelect {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.secondaryButton,
 .secondary-button {
   background: transparent;
   color: white;
   border: 1px solid white;
 }
 
+.displayScreen,
 .display-screen {
   width: min(100%, 1000px);
   min-height: 380px;
@@ -75,11 +106,13 @@ button {
   background: #161616;
 }
 
+.displayScreen h2,
 .display-screen h2 {
   font-size: 52px;
   margin-bottom: 24px;
 }
 
+.displayScreen p,
 .display-screen p {
   font-size: 34px;
   line-height: 1.5;
@@ -138,6 +171,7 @@ button {
   white-space: pre-line;
 }
 .versionSelect {
+  max-width: 100%;
   padding: 14px 18px;
   border-radius: 999px;
   border: 1px solid #333;
