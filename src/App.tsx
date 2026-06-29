@@ -344,10 +344,6 @@ function normalizeBookSearchText(text: string) {
     .trim();
 }
 
-function hasChapterOrVersePart(input: string) {
-  return /\s+\d/.test(input.trim());
-}
-
 function getBookSearchQuery(input: string) {
   const trimmedInput = input.trimStart();
   const chapterMatch = trimmedInput.match(/\s+\d/);
@@ -357,6 +353,10 @@ function getBookSearchQuery(input: string) {
   }
 
   return trimmedInput;
+}
+
+function inputHasChapterOrVersePart(input: string) {
+  return /\s+\d/.test(input.trim());
 }
 
 function getBibleBookSearchParts(book: string) {
@@ -381,6 +381,14 @@ function getBibleBookSearchParts(book: string) {
     displayName: normalizedBook,
     writtenNumberName: "",
   };
+}
+
+function isExactBibleBookDisplayQuery(query: string) {
+  return bibleBooks.some((book) => {
+    const { displayName } = getBibleBookSearchParts(book);
+
+    return displayName === query;
+  });
 }
 
 function getBibleBookSuggestionScore(book: string, query: string) {
@@ -424,13 +432,13 @@ function getBibleBookSuggestionScore(book: string, query: string) {
 }
 
 function getBibleBookSuggestions(input: string) {
-  if (!input.trim() || hasChapterOrVersePart(input)) {
-    return [];
-  }
-
   const query = normalizeBookSearchText(getBookSearchQuery(input));
 
   if (!query) {
+    return [];
+  }
+
+  if (inputHasChapterOrVersePart(input) && isExactBibleBookDisplayQuery(query)) {
     return [];
   }
 
@@ -470,7 +478,7 @@ function applyBookSuggestion(input: string, bookName: string) {
     return `${bookName} ${restOfReference}`;
   }
 
-  return `${bookName} `;
+  return bookName;
 }
 
 function isSelectedPassage(result: BibleResult | null, slides: BibleSlide[]) {
@@ -489,9 +497,11 @@ function App() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [showBookSuggestions, setShowBookSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
 
   const speechRecognitionRef = useRef<any>(null);
   const processSpeechRef = useRef<(spokenText: string) => void>(() => {});
+  const referenceInputWrapRef = useRef<HTMLDivElement | null>(null);
   const latestStateRef = useRef<LatestBibleState>({
     referenceInput: "",
     selectedVersion: "KJV",
@@ -881,6 +891,29 @@ function App() {
     processSpeechRef.current = processSpeech;
   }, [processSpeech]);
 
+  useEffect(() => {
+    setActiveSuggestionIndex(0);
+  }, [referenceInput, bookSuggestions.length]);
+
+  useEffect(() => {
+    function handleDocumentMouseDown(event: MouseEvent) {
+      const target = event.target as Node;
+
+      if (
+        referenceInputWrapRef.current &&
+        !referenceInputWrapRef.current.contains(target)
+      ) {
+        setShowBookSuggestions(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+    };
+  }, []);
+
   const startListening = useCallback(() => {
     const SpeechRecognitionClass =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -979,11 +1012,41 @@ function App() {
     setReferenceInput(nextReferenceInput);
     updateLatestState({ referenceInput: nextReferenceInput });
     setShowBookSuggestions(false);
+    setActiveSuggestionIndex(0);
   }
 
   function handleInputKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
+    if (event.key === "ArrowDown" && shouldShowBookSuggestions) {
+      event.preventDefault();
+      setActiveSuggestionIndex((currentIndex) =>
+        currentIndex >= bookSuggestions.length - 1 ? 0 : currentIndex + 1
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp" && shouldShowBookSuggestions) {
+      event.preventDefault();
+      setActiveSuggestionIndex((currentIndex) =>
+        currentIndex <= 0 ? bookSuggestions.length - 1 : currentIndex - 1
+      );
+      return;
+    }
+
+    if (event.key === "Escape" && showBookSuggestions) {
+      event.preventDefault();
       setShowBookSuggestions(false);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (shouldShowBookSuggestions) {
+        event.preventDefault();
+        selectBibleBook(
+          bookSuggestions[activeSuggestionIndex] || bookSuggestions[0]
+        );
+        return;
+      }
+
       showVerse();
     }
   }
@@ -1108,34 +1171,40 @@ function App() {
             ))}
           </select>
 
-          <div className="referenceInputWrap">
+          <div className="referenceInputWrap" ref={referenceInputWrapRef}>
             <input
               value={referenceInput}
-              onBlur={() => {
-                window.setTimeout(() => setShowBookSuggestions(false), 120);
-              }}
               onChange={(event) => {
                 setReferenceInput(event.target.value);
                 updateLatestState({ referenceInput: event.target.value });
                 setShowBookSuggestions(true);
               }}
-              onFocus={() => setShowBookSuggestions(true)}
+              onFocus={() => {
+                setShowBookSuggestions(true);
+                setActiveSuggestionIndex(0);
+              }}
               onKeyDown={handleInputKeyDown}
               placeholder="Try John 3:16"
             />
 
             {shouldShowBookSuggestions && (
               <div className="bookSuggestions" role="listbox">
-                {bookSuggestions.map((bookName) => (
+                {bookSuggestions.map((bookName, index) => (
                   <button
-                    className="bookSuggestion"
+                    className={
+                      index === activeSuggestionIndex
+                        ? "bookSuggestion active"
+                        : "bookSuggestion"
+                    }
                     key={bookName}
                     onMouseDown={(event) => {
                       event.preventDefault();
                       selectBibleBook(bookName);
                     }}
+                    onMouseEnter={() => setActiveSuggestionIndex(index)}
                     type="button"
                     role="option"
+                    aria-selected={index === activeSuggestionIndex}
                   >
                     {bookName}
                   </button>
