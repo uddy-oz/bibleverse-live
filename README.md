@@ -1,73 +1,117 @@
-# React + TypeScript + Vite
+# BibleVerse Live
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+BibleVerse Live is a church media tool built to help display Bible verses faster during sermons, Bible studies, services, and live events.
 
-Currently, two official plugins are available:
+The goal is simple: when a pastor or speaker mentions a Bible reference, the media team should be able to show it on screen quickly without interrupting the flow of the service.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Live Demo: https://bibleverse-live.vercel.app/
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* Instant Bible reference search
+* Projector display mode at `/display`
+* Open Display button for second screen use
+* Next and previous verse controls
+* Next and previous slide controls
+* Bible book autocomplete
+* Keyboard support for autocomplete suggestions
+* Voice command foundation
+* Local parser structure prepared for future AI assist mode
+* Clean dark interface for church media use
 
-## Expanding the ESLint configuration
+## How It Works
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+BibleVerse Live has two main views:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Controller View
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+The main page lets the media person search for a Bible reference, control slides, move between verses, and open the display screen.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Display View
+
+The `/display` page is designed for a projector, livestream screen, or second monitor. It shows the selected Bible verse in a large, clean format.
+
+The controller and display page currently sync through browser localStorage, so they work best when used on the same device or browser.
+
+## Example References
+
+You can search references like:
+
+* John 3:16
+* Psalm 23:1-6
+* Romans 8:28
+* Matthew 6:33
+* John 12
+* 1 Corinthians 13:4
+
+## Tech Stack
+
+* React
+* TypeScript
+* Vite
+* CSS
+* Browser SpeechRecognition API
+* localStorage
+* Vercel
+
+## Project Vision
+
+BibleVerse Live is currently an early MVP, but the long-term goal is to build it into an AI assisted scripture display tool for churches and volunteer media teams.
+
+Future ideas include:
+
+* AI assisted verse detection
+* Sermon context mode
+* Preview queue before sending verses live
+* Better voice command handling
+* More display themes
+* Church workspace settings
+* Saved service history
+* Safer multi-device display syncing
+
+## Current AI Status
+
+The app currently uses a local parser foundation for speech and command handling.
+
+Gemini or other AI APIs are not connected yet. The codebase is being prepared so AI parsing can be added later through a safe backend or serverless endpoint without exposing API keys in the frontend.
+
+## Running Locally
+
+Clone the project:
+
+```bash
+git clone https://github.com/uddy-oz/bibleverse-live.git
+cd bibleverse-live
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Install dependencies:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+## Deployment
+
+This project is deployed with Vercel.
+
+Production link:
+
+https://bibleverse-live.vercel.app/
+
+## Author
+
+Built by Udochukwu Ozoh.
+
+GitHub: https://github.com/uddy-oz
