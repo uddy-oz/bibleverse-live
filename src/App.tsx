@@ -598,6 +598,10 @@ function App() {
     localStorage.removeItem("bibleverse_display");
   }, [updateLatestState]);
 
+  const openDisplay = useCallback(() => {
+    window.open("/display", "_blank", "noopener,noreferrer");
+  }, []);
+
   const runVoiceCommand = useCallback((command: string, action: () => void) => {
     const now = Date.now();
     const lastCommand = voiceCommandCooldownRef.current;
@@ -1013,6 +1017,10 @@ function App() {
             onClick={isListening ? stopListening : startListening}
           >
             {isListening ? "Stop Listening" : "Start Listening"}
+          </button>
+
+          <button className="secondaryButton" onClick={openDisplay}>
+            Open Display
           </button>
 
           <button className="secondaryButton" onClick={clearDisplay}>
